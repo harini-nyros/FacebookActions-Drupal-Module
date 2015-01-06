@@ -1,0 +1,4 @@
+core = "7.x"
+name = "Facebook actions"
+description = Adds the facebook <em> Like</em> button,<em> Share</em> button,<em> Comments</em> to the selected node type.
+
