@@ -1,0 +1,193 @@
+<?php
+
+
+/**
+ * @file
+ * Adds Facebook's "Like and share and comments button"  to  selected node type.
+ */
+function facebookactions_menu() {
+
+  $items = array();
+   
+  $items['admin/config/system/facebookactions'] = array(
+    'title' => 'Facebook Actions',
+    'description' => 'Configure the facebook like and share buttons',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('facebookactions_admin_settings_form'),
+    'access arguments' => array('administer facebookactions'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'facebookactions.admin.inc',
+    'weight' => 0,
+   );
+
+  return $items;
+}
+
+/**
+ * Implements of hook_permission().
+ */
+
+function facebookactions_permission() {
+  return array(
+    'administer facebookactions' => array(
+      'title' => t('Administer Facebook actions'),
+      'description' => t('Perform administration tasks for facebook related actions')
+    ),
+    'access facebookactions' => array(
+      'title' => t('Access Facebook Actions'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_block_info().
+ */
+
+function  facebookactions_block_info() {
+
+		  $blocks[0] = array(
+		    			'info' => t('Facebook Comments'),
+		  		     );
+		  return $blocks;
+} 
+
+/**
+ * Implements hook_block_view().
+ */
+
+function facebookactions_block_view($delta='') {
+
+  $block = array();	
+  switch ($delta) {
+    case 0:
+      $type='';
+      $types = variable_get('facebookbutton_node_types', array());
+    										 // Match current node type with array of types
+	  if (arg(0) == 'node' && is_numeric(arg(1))) {
+	    $nid = arg(1);
+	    $node = node_load($nid);
+	    $type = $node->type; 
+   	    $match = in_array($type,$types);
+	  }
+       if(($type != '' ) && ($types[$type] != '0'))				//check for the current node type and display the block
+       {
+	      
+	      $block['subject'] = t('<none>');
+	      $block['content'] = facebookactions_block_content();
+	      break;
+       }
+  }
+  return $block;
+} 
+
+
+/**
+ * Implements hook_block_content().
+ */
+
+
+function facebookactions_block_content() 
+{ 
+    	  $appid=variable_get('facebookactions_app_id');
+	  global $base_url;								// Generate the URL
+	  $url = $base_url .'/'. drupal_get_path_alias($_GET['q']);
+	  $style = variable_get('facebook_comments_style', 'light');
+
+	  $output = '<div id="fb-root"></div>
+	  <script>(function(d, s, id) {
+	  var js, fjs = d.getElementsByTagName(s)[0];
+	  if (d.getElementById(id)) {return;}
+	  js = d.createElement(s); js.id = id;
+	  js.src = "//connect.facebook.net/en_US/all.js#xfbml=1";
+	  fjs.parentNode.insertBefore(js, fjs);
+	  }(document, "script", "facebook-jssdk"));</script>				
+	   <div class="fb-comments" data-href="'. $url .'" data-numposts="5" data-colorscheme="light"></div>';
+
+	   return $output;
+} 
+
+
+/**
+ * Implements of hook_node_view().
+ */
+
+
+function facebookactions_node_view($node, $view_mode) {
+  global $user, $base_url;
+  $types = variable_get('facebookbutton_node_types', array());
+  $url = url("node/$node->nid", array('absolute' => TRUE));
+  $weight=0;
+  $uri = entity_uri('node', $node);
+   $path=url($uri['path'], $uri['options']);
+   if($view_mode == 'full') 								// checking the the node is in full view mode
+   {
+	  if((!empty($types[$node->type])) && user_access('access facebookactions'))
+	  {
+		$fields_info = field_info_instances("node", $node->type);
+		$appid=variable_get('facebookactions_app_id');
+		$fb_appid=array('#tag' => 'meta','#attributes' => array("property" => "fb:app_id","content" =>"$appid"),);
+		drupal_add_html_head($fb_appid,'fb:app_id');
+		foreach ($fields_info as $field_name => $value) 
+		{
+	  		$field_info = field_info_field($field_name);
+	  		$type = $field_info['type'];
+			if($type == 'image')
+			{
+				$imgarray=$node->$field_name;
+				$relativePath= $imgarray['und'][0]['uri'];
+				$image= image_style_url('thumbnail', $relativePath);
+				$og_image = array('#tag' => 'meta','#attributes' => array("property" => "og:image","content" => $image,),);
+				drupal_add_html_head($og_image,'og_image');
+
+			}
+	  	}
+	
+		  $og_title = array( '#tag' => 'meta', '#attributes' => array( 'property' => 'og:title', 'content' => $node->title,),); 
+		  $og_url = array('#tag' => 'meta','#attributes' => array("property" => "og:url","content" => $path,),);
+		  drupal_add_html_head($og_title, 'og_title'); 			    // Adding Meta Tags
+		  $node->content['facebookactions'] = array(
+								'#markup' => theme('facebookactions', array('url' => $url)),
+								'#weight' => is_numeric($weight) ? (int)$weight : -10,
+    							   );
+
+	  }
+  }
+
+}
+
+/**
+ * Helper function to generate the configuration array used to generate the like and share
+ * buttons.
+ */
+
+function facebookactions_conf() {
+$conf = array(
+    'layout' => variable_get('facebookactions_layout', 'button_count'),
+    'action' => variable_get('facebookactions_action', 'like'),
+    'color_scheme' => variable_get('facebookactions_color_scheme', 'light'),
+    'show_faces' => variable_get('facebookactions_show_faces',FALSE),
+    'font' => variable_get('facebookactions_font', 'arial'),
+    'height' => variable_get('facebookactions_iframe_height', '22'),
+    'width' => variable_get('facebookactions_iframe_width', '450'),
+    'send' => variable_get('facebookactions_send', 'true'),
+    'other_css' => variable_get('facebookactions_iframe_css',''),
+    'language' => variable_get('facebookactions_language', 'en_US'),
+    'AppID'=>variable_get('facebookactions_app_id'),
+  );
+  
+  return $conf;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function facebookactions_theme($variables) {
+  $theme = array();
+  $theme['facebookactions'] = array(
+    'variables' => facebookactions_conf(),
+    'file' => 'facebookactions.theme.inc',
+    'template' => 'facebookactions',
+  );
+  return $theme;
+}
+
