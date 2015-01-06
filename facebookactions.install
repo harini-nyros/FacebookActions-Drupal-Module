@@ -1,0 +1,26 @@
+<?php 
+
+/**
+ * Implementation of hook_install().
+ */
+
+function facebookactions_install()
+{
+	//  There really is no "schema" to install.
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+
+function facebookactions_uninstall() 
+{ 
+  variable_del('facebookactions_show_faces');
+  variable_del('facebookactions_layout');
+  variable_del('facebookactions_color_scheme');
+  variable_del('facebookactions_iframe_height');
+  variable_del('facebookactions_iframe_width');
+  variable_del('facebookactions_iframe_css');
+  variable_del('facebookactions_language');
+}
+
